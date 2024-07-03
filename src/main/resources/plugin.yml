@@ -1,0 +1,4 @@
+name: MOBAPlugin
+version: '${version}'
+main: me.oliverhesse.mobaplugin.MOBAPlugin
+api-version: '1.20'
