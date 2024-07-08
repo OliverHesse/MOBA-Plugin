@@ -2,3 +2,7 @@ name: MOBAPlugin
 version: '1.0-SNAPSHOT'
 main: me.oliverhesse.mobaplugin.MOBAPlugin
 api-version: '1.20'
+commands:
+  start_game:
+    description: creates a dev game
+    usage: /start_game
