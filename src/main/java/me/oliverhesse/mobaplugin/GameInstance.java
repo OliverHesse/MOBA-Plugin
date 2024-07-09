@@ -3,15 +3,13 @@ package me.oliverhesse.mobaplugin;
 import me.oliverhesse.mobaplugin.CustomEntities.Minion;
 import me.oliverhesse.mobaplugin.CustomEntities.Tower;
 import me.oliverhesse.mobaplugin.GameEvents.GameStateChange;
+import me.oliverhesse.mobaplugin.GameEvents.TowerDestroyedEvent;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -20,7 +18,6 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,19 +37,60 @@ public class GameInstance implements Listener,Runnable{
     private Integer GAME_TIME = 0;
     private Integer MINION_SPAWN_FREQUENCY = 60;
     private Integer TIME_SINCE_LAST_MINION_SPAWN = 20;
-    private Integer RESPAWN_TIMER = 10;
+    private Integer RESPAWN_TIME = 10;
     private BukkitTask GAME_TIMER;
     private final Plugin plugin;
     private final Location map_center;
     private final UUID GAME_ID;
     private final Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-    private Team BlueTeamS;
-    private Team RedTeamS;
-    private Player[] BlueTeam = new Player[3];
-    private Player[] RedTeam = new Player[3];
+    private Team BlueTeam;
+    private Team RedTeam;
 
+    /*
+    important data for relative map cords
+    most likely create some sort of static relativeMap type to hold this data
+    Map Center:
+
+    World cords(Block) =[0, 0, 0]
+
+    Red Player Base:
+
+    Base cords(Block) =[94, 1, -94]
+    Lane 1 Minion spawn(Block) =[68, 0, -80]
+    Lane 2 Minion spawn(Block) =[70, 0, -70]
+    Lane 3 Minion spawn(Block) =[80, 0, -68]
+    Lane 1 Goal 1 (Block) =[-62, 0, -80]
+    Lane 3 Goal 1 (Block) =[80, 0, 62]
+    Lane 1 Tower 1 (Block) =[32, 0, -80]
+    Lane 1 Tower 2 (Block) =[-45, 0, -80]
+    Lane 2 Tower 1 (Block) =[46, 0, -46]
+    Lane 2 Tower 2 (Block) =[18, 0, -18]
+    Lane 3 Tower 1 (Block) =[80, 0, -32]
+    Lane 3 Tower 2 (Block) =[80, 0, 45]
+
+    Blue Player Base:
+
+    Base cords(Block) =[-94, 1, 94]
+    Lane 1 Minion spawn(Block) =[-80, 0, 68]
+    Lane 2 Minion spawn(Block) =[-70, 0, 70]
+    Lane 3 Minion spawn(Block) =[-68, 0, 80]
+    Lane 1 Tower 1 (Block) =[-80, 0, 23]
+    Lane 1 Tower 2 (Block) =[-80, 0, -45]
+    Lane 2 Tower 1 (Block) =[-46, 0, 46]
+    Lane 2 Tower 2 (Block) =[-18, 0, 18]
+    Lane 3 Tower 1 (Block) =[-23, 0, 80]
+    Lane 3 Tower 2 (Block) =[45, 0, 80]
+    Lane 1 Goal 1 (Block) =[-80, 0, -62]
+    Lane 3 Goal 1 (Block) =[62, 0, 80]
+
+    */
     private HashMap<String, List<Minion>> mobs = new HashMap<>();
 
+    /*
+    towers will be in the format
+    [(teamName)(LaneNumber)][numberInLane]
+
+     */
     private HashMap<String, Tower[]> lanes = new HashMap<>();
     public GameInstance(Plugin plugin, Location map_center,UUID game_id){
         this.plugin = plugin;
@@ -73,8 +111,9 @@ public class GameInstance implements Listener,Runnable{
 
 
         //register my teams
-        BlueTeamS = scoreboard.registerNewTeam(game_id.toString()+"?Blue");
-        RedTeamS = scoreboard.registerNewTeam(game_id.toString()+"?Red");
+        BlueTeam = scoreboard.registerNewTeam(game_id.toString()+"?Blue");
+        RedTeam = scoreboard.registerNewTeam(game_id.toString()+"?Red");
+
 
     }
 
@@ -85,12 +124,16 @@ public class GameInstance implements Listener,Runnable{
                     tower.destroy();
                 }
             }
+
         }
+        lanes = new HashMap<String,Tower[]>();
     }
+
     @Override
     public void run(){
         main_loop();
     }
+
     public void main_loop(){
         //this function should be run every tick
         GAME_TIME += 1;
@@ -101,6 +144,7 @@ public class GameInstance implements Listener,Runnable{
             TIME_SINCE_LAST_MINION_SPAWN -= 1;
         }
     }
+
     public void build_towers(){
         //need all Locations for towers that i will work out later
 
@@ -109,7 +153,7 @@ public class GameInstance implements Listener,Runnable{
         Bukkit.broadcast(Component.text("Minions Where Spawned"));
     }
     public void respawn_player(Player player){
-        if(BlueTeamS.hasPlayer(player)){
+        if(BlueTeam.hasPlayer(player)){
             //respawn at blue base
             tp_blue_team(player);
         }else{
@@ -118,23 +162,23 @@ public class GameInstance implements Listener,Runnable{
     }
     public void tp_blue_team(Player player){}
     public void tp_red_team(Player player){}
-    public boolean Start_Game(Player[] BlueTeam,Player[] RedTeam){
+    public void Start_Game(Player[] BlueTeam, Player[] RedTeam){
         if(CURRENT_GAME_STATE != GameState.PreGame){
-            return false;
+            return;
         }
-        this.BlueTeam = BlueTeam;
-        this.RedTeam = RedTeam;
-
+  
         clear_maps();
 
         build_towers();
 
         for(Player player :BlueTeam){
-            BlueTeamS.addPlayer(player);
+            //setup nbt data
+            this.BlueTeam.addPlayer(player);
             tp_blue_team(player);
         }
         for(Player player :RedTeam){
-            RedTeamS.addPlayer(player);
+            //setup nbt data
+            this.RedTeam.addPlayer(player);
             tp_blue_team(player);
         }
         CURRENT_GAME_STATE = GameState.InGame;
@@ -143,7 +187,6 @@ public class GameInstance implements Listener,Runnable{
 
         Bukkit.broadcast(Component.text("Game Started"));
         GAME_TIMER = Bukkit.getScheduler().runTaskTimer(plugin,this,0L,20L);
-        return true;
     }
 
 
@@ -169,8 +212,18 @@ public class GameInstance implements Listener,Runnable{
                 // Your one-time task code here
                respawn_player(player);
             }
-        }, RESPAWN_TIMER*20);
+        }, RESPAWN_TIME*20);
         event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onTowerDestroyed(TowerDestroyedEvent event){
+        if(event.getTower().getGAME_ID()==this.GAME_ID){
+            //tower is from this game
+            Bukkit.broadcast(Component.text(event.getAttacker().getName() +" Has destroyed a tower"));
+            event.getTower().destroy();
+            this.lanes.get(event.getTower().getTOWER_TEAM()+event.getTower().getTOWER_LANE().toString())[event.getTower().getTOWER_NUMBER()] = null;
+        }
     }
 
 }

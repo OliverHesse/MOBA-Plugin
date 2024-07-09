@@ -17,6 +17,9 @@ public final class MOBAPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         // Plugin shutdown logic
+        for(GameInstance game:this.temp){
+            game.clear_maps();
+        }
     }
 
     public void addGame(GameInstance game){

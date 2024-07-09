@@ -32,7 +32,7 @@ public class GameStateChange extends Event {
         this.new_state = new_state;
     }
     @Override
-    public HandlerList getHandlers() {
+    public @NotNull HandlerList getHandlers() {
         return HANDLER_LIST;
     }
 }
