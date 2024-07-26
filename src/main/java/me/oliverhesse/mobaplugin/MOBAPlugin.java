@@ -19,6 +19,7 @@ public final class MOBAPlugin extends JavaPlugin {
         // Plugin shutdown logic
         for(GameInstance game:this.temp){
             game.clear_maps();
+            game.end_game();
         }
     }
 

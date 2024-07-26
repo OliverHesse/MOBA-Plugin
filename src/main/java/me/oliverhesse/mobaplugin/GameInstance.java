@@ -18,11 +18,9 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
+import org.bukkit.util.Vector;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class GameInstance implements Listener,Runnable{
 
@@ -92,12 +90,39 @@ public class GameInstance implements Listener,Runnable{
 
      */
     private HashMap<String, Tower[]> lanes = new HashMap<>();
+
+    public void build_towers(){
+        //need all Locations for towers that i will work out later
+        Tower[] currentLane = new Tower[]{new Tower(plugin,this.GAME_ID,1,1,this.map_center.clone().add(new Vector(-80,0,23)),"Blue"),new Tower(plugin,this.GAME_ID,1,2,this.map_center.clone().add(new Vector(-80,0,-45)),"Blue")};
+        lanes.put("BlueLane1",currentLane);
+        currentLane = new Tower[]{new Tower(plugin,this.GAME_ID,2,1,this.map_center.clone().add(new Vector(-46,0,46)),"Blue"),new Tower(plugin,this.GAME_ID,2,2,this.map_center.clone().add(new Vector(-18,0,18)),"Blue")};
+
+        lanes.put("BlueLane2",currentLane);
+
+        currentLane = new Tower[]{ new Tower(plugin,this.GAME_ID,3,1,this.map_center.clone().add(new Vector(-23,0,80)),"Blue"),new Tower(plugin,this.GAME_ID,3,2,this.map_center.clone().add(new Vector(45,0,80)),"Blue")};
+        lanes.put("BlueLane3",currentLane);
+    /*
+        Lane 1 Tower 1 (Block) =[32, 0, -80]
+        Lane 1 Tower 2 (Block) =[-45, 0, -80]
+        Lane 2 Tower 1 (Block) =[46, 0, -46]
+        Lane 2 Tower 2 (Block) =[18, 0, -18]
+        Lane 3 Tower 1 (Block) =[80, 0, -32]
+        Lane 3 Tower 2 (Block) =[80, 0, 45] */
+        currentLane = new Tower[]{new Tower(plugin,this.GAME_ID,1,1,this.map_center.clone().add(new Vector(32,0,-80)),"Red"),new Tower(plugin,this.GAME_ID,1,2,this.map_center.clone().add(new Vector(-45,0,-80)),"Red")};
+        lanes.put("RedLane1",currentLane);
+        currentLane = new Tower[]{ new Tower(plugin,this.GAME_ID,2,1,this.map_center.clone().add(new Vector(46,0,-46)),"Red"),new Tower(plugin,this.GAME_ID,2,2,this.map_center.clone().add(new Vector(18,0,-18)),"Red")};
+        lanes.put("RedLane2",currentLane);
+        currentLane = new Tower[]{ new Tower(plugin,this.GAME_ID,3,1,this.map_center.clone().add(new Vector(80,0,-32)),"Red"), new Tower(plugin,this.GAME_ID,3,2,this.map_center.clone().add(new Vector(80,0,45)),"Red")};
+        lanes.put("RedLane3",currentLane);
+
+    }
     public GameInstance(Plugin plugin, Location map_center,UUID game_id){
         this.plugin = plugin;
         this.map_center = map_center;
         this.GAME_ID = game_id;
 
         lanes.put("BlueLane1",new Tower[2]);
+
         lanes.put("RedLane1",new Tower[2]);
 
         lanes.put("BlueLane2",new Tower[2]);
@@ -109,7 +134,13 @@ public class GameInstance implements Listener,Runnable{
         mobs.put("RedMinions",new ArrayList<>());
         mobs.put("BlueMinions",new ArrayList<>());
 
-
+        for (String key : lanes.keySet()) {
+            if (lanes.get(key) == null) {
+                Bukkit.broadcast(Component.text("Initialization Error: " + key + " is null!"));
+            } else {
+                Bukkit.broadcast(Component.text(key + " initialized successfully."));
+            }
+        }
         //register my teams
         BlueTeam = scoreboard.registerNewTeam(game_id.toString()+"?Blue");
         RedTeam = scoreboard.registerNewTeam(game_id.toString()+"?Red");
@@ -145,10 +176,7 @@ public class GameInstance implements Listener,Runnable{
         }
     }
 
-    public void build_towers(){
-        //need all Locations for towers that i will work out later
 
-    }
     public void spanw_minions(){
         Bukkit.broadcast(Component.text("Minions Where Spawned"));
     }
@@ -173,13 +201,18 @@ public class GameInstance implements Listener,Runnable{
 
         for(Player player :BlueTeam){
             //setup nbt data
-            this.BlueTeam.addPlayer(player);
-            tp_blue_team(player);
+            if(player != null){
+                this.BlueTeam.addPlayer(player);
+                tp_blue_team(player);
+            }
         }
         for(Player player :RedTeam){
             //setup nbt data
-            this.RedTeam.addPlayer(player);
-            tp_blue_team(player);
+            if(player != null){
+                this.RedTeam.addPlayer(player);
+                tp_blue_team(player);
+
+            }
         }
         CURRENT_GAME_STATE = GameState.InGame;
         GameStateChange change_event = new GameStateChange(GameState.PreGame,GameState.InGame,GAME_ID);
@@ -189,7 +222,9 @@ public class GameInstance implements Listener,Runnable{
         GAME_TIMER = Bukkit.getScheduler().runTaskTimer(plugin,this,0L,20L);
     }
 
+    public void end_game(){
 
+    }
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event){
         Player player = event.getPlayer();

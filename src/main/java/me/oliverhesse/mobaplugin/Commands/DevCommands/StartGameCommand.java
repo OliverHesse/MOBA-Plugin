@@ -22,7 +22,9 @@ public class StartGameCommand implements CommandExecutor {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         if (sender instanceof Player player){
             GameInstance newGame = new GameInstance(plugin,player.getLocation(), UUID.randomUUID());
-            newGame.Start_Game(new Player[3],new Player[3]);
+            Player[] temp = new Player[3];
+            temp[0] = player;
+            newGame.Start_Game(temp,new Player[3]);
             ((MOBAPlugin) plugin).addGame(newGame);
             return true;
         }
